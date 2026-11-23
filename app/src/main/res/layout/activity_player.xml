@@ -14,7 +14,7 @@
         app:show_buffering="when_playing"
         app:use_controller="true" />
 
-    <!-- Gesture Indicator (Brightness / Volume) -->
+    <!-- Gesture Indicator (Brightness / Volume / Seek Time) -->
     <TextView
         android:id="@+id/tvGestureInfo"
         android:layout_width="wrap_content"
@@ -28,8 +28,9 @@
         android:textStyle="bold"
         android:visibility="gone" />
 
-    <!-- Top Action Buttons (Aspect Ratio & PiP) -->
+    <!-- Top Action Buttons (Auto-hide with player controls) -->
     <LinearLayout
+        android:id="@+id/topButtonsLayout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|end"
