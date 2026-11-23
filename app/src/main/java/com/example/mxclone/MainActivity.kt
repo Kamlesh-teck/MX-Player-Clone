@@ -4,9 +4,12 @@ import android.Manifest
 import android.content.ContentUris
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.provider.MediaStore
+import android.view.View
+import android.view.ViewGroup
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -33,10 +36,18 @@ class MainActivity : AppCompatActivity() {
         val btnPlayUrl = findViewById<Button>(R.id.btnPlayUrl)
         val listView = findViewById<ListView>(R.id.listViewVideos)
 
-        adapter = ArrayAdapter(this, android.R.layout.simple_list_item_1, videoTitles)
+        // List text ko white color dene ke liye custom ArrayAdapter
+        adapter = object : ArrayAdapter<String>(this, android.R.layout.simple_list_item_1, videoTitles) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent)
+                val textView = view.findViewById<TextView>(android.R.id.text1)
+                textView.setTextColor(Color.WHITE)
+                textView.textSize = 15f
+                return view
+            }
+        }
         listView.adapter = adapter
 
-        // Network URL Play
         btnPlayUrl.setOnClickListener {
             val url = etVideoUrl.text.toString().trim()
             if (url.isNotEmpty()) {
@@ -46,7 +57,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Local Video Click
         listView.setOnItemClickListener { _, _, position, _ ->
             openPlayer(videoUris[position], videoTitles[position])
         }
