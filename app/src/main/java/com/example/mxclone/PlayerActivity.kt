@@ -12,12 +12,17 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
+import java.util.Locale
 import kotlin.math.abs
 
 class PlayerActivity : AppCompatActivity() {
@@ -25,6 +30,7 @@ class PlayerActivity : AppCompatActivity() {
     private var player: ExoPlayer? = null
     private lateinit var playerView: PlayerView
     private lateinit var tvGestureInfo: TextView
+    private lateinit var topButtonsLayout: LinearLayout
     private lateinit var audioManager: AudioManager
     private var resizeModeIndex = 0
 
@@ -35,14 +41,22 @@ class PlayerActivity : AppCompatActivity() {
 
         playerView = findViewById(R.id.playerView)
         tvGestureInfo = findViewById(R.id.tvGestureInfo)
+        topButtonsLayout = findViewById(R.id.topButtonsLayout)
         val btnAspect = findViewById<Button>(R.id.btnAspect)
         val btnPip = findViewById<Button>(R.id.btnPip)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
+        // Status bar aur Navigation bar hide karein (Immersive Fullscreen)
+        hideSystemUI()
+
+        // FIT aur PIP buttons ko player controls ke saath auto-hide/show karein
+        playerView.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
+            topButtonsLayout.visibility = visibility
+        })
+
         val videoUri = intent.getStringExtra("VIDEO_URI") ?: return
         initializePlayer(videoUri)
 
-        // Aspect Ratio Toggle (MX Player style)
         btnAspect.setOnClickListener {
             resizeModeIndex = (resizeModeIndex + 1) % 3
             when (resizeModeIndex) {
@@ -61,7 +75,6 @@ class PlayerActivity : AppCompatActivity() {
             }
         }
 
-        // Picture-in-Picture Mode
         btnPip.setOnClickListener {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val params = PictureInPictureParams.Builder()
@@ -72,6 +85,20 @@ class PlayerActivity : AppCompatActivity() {
         }
 
         setupGestures()
+    }
+
+    private fun hideSystemUI() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, playerView).let { controller ->
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideSystemUI()
     }
 
     private fun initializePlayer(uriString: String) {
@@ -108,20 +135,32 @@ class PlayerActivity : AppCompatActivity() {
                 distanceY: Float
             ): Boolean {
                 if (e1 == null) return false
+
                 if (abs(distanceY) > abs(distanceX)) {
+                    // Vertical Swipe: Brightness (Left) ya Volume (Right)
                     val screenWidth = playerView.width
                     val deltaPercent = distanceY / playerView.height
 
                     if (e1.x < screenWidth / 2) {
-                        // Left Side: Brightness
                         adjustBrightness(deltaPercent)
                     } else {
-                        // Right Side: Volume
                         adjustVolume(deltaPercent)
                     }
                     return true
+                } else {
+                    // Horizontal Swipe: Video aage-piche (Seek) karein
+                    player?.let { exoPlayer ->
+                        val duration = exoPlayer.duration
+                        if (duration > 0) {
+                            // Left swipe = piche, Right swipe = aage
+                            val seekDelta = (-distanceX * 150).toLong()
+                            val newPosition = (exoPlayer.currentPosition + seekDelta).coerceIn(0, duration)
+                            exoPlayer.seekTo(newPosition)
+                            showIndicator("${formatTime(newPosition)} / ${formatTime(duration)}")
+                        }
+                    }
+                    return true
                 }
-                return false
             }
         })
 
@@ -151,6 +190,18 @@ class PlayerActivity : AppCompatActivity() {
         audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
         val percent = ((newVol.toFloat() / maxVol) * 100).toInt()
         showIndicator("Volume: $percent%")
+    }
+
+    private fun formatTime(ms: Long): String {
+        val totalSeconds = ms / 1000
+        val seconds = totalSeconds % 60
+        val minutes = (totalSeconds / 60) % 60
+        val hours = totalSeconds / 3600
+        return if (hours > 0) {
+            String.format(Locale.getDefault(), "%02d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+        }
     }
 
     private fun showIndicator(text: String) {
