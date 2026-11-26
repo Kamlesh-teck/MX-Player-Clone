@@ -28,9 +28,11 @@ import kotlin.math.abs
 class PlayerActivity : AppCompatActivity() {
 
     private var player: ExoPlayer? = null
+    private lateinit var prefs: AppPrefs
     private lateinit var playerView: PlayerView
     private lateinit var tvGestureInfo: TextView
     private lateinit var topButtonsLayout: LinearLayout
+    private lateinit var btnAspect: Button
     private lateinit var audioManager: AudioManager
     private var resizeModeIndex = 0
 
@@ -39,17 +41,29 @@ class PlayerActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_player)
 
+        prefs = AppPrefs(this)
         playerView = findViewById(R.id.playerView)
         tvGestureInfo = findViewById(R.id.tvGestureInfo)
         topButtonsLayout = findViewById(R.id.topButtonsLayout)
-        val btnAspect = findViewById<Button>(R.id.btnAspect)
+        btnAspect = findViewById(R.id.btnAspect)
         val btnPip = findViewById<Button>(R.id.btnPip)
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-        // Status bar aur Navigation bar hide karein (Immersive Fullscreen)
         hideSystemUI()
 
-        // FIT aur PIP buttons ko player controls ke saath auto-hide/show karein
+        // Saved Brightness apply karein
+        if (prefs.rememberBrightness && prefs.savedBrightness > 0f) {
+            val lp = window.attributes
+            lp.screenBrightness = prefs.savedBrightness
+            window.attributes = lp
+        }
+
+        // Saved Aspect Ratio apply karein
+        if (prefs.rememberAspectRatio) {
+            resizeModeIndex = prefs.savedAspectRatio
+            applyAspectRatio(resizeModeIndex)
+        }
+
         playerView.setControllerVisibilityListener(PlayerView.ControllerVisibilityListener { visibility ->
             topButtonsLayout.visibility = visibility
         })
@@ -59,32 +73,49 @@ class PlayerActivity : AppCompatActivity() {
 
         btnAspect.setOnClickListener {
             resizeModeIndex = (resizeModeIndex + 1) % 3
-            when (resizeModeIndex) {
-                0 -> {
-                    playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    btnAspect.text = "Fit"
-                }
-                1 -> {
-                    playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                    btnAspect.text = "Zoom"
-                }
-                2 -> {
-                    playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
-                    btnAspect.text = "Stretch"
-                }
+            applyAspectRatio(resizeModeIndex)
+            if (prefs.rememberAspectRatio) {
+                prefs.savedAspectRatio = resizeModeIndex
             }
         }
 
-        btnPip.setOnClickListener {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val params = PictureInPictureParams.Builder()
-                    .setAspectRatio(Rational(16, 9))
-                    .build()
-                enterPictureInPictureMode(params)
-            }
-        }
+        btnPip.setOnClickListener { enterPipMode() }
 
         setupGestures()
+    }
+
+    private fun applyAspectRatio(mode: Int) {
+        when (mode) {
+            0 -> {
+                playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+                btnAspect.text = "Fit"
+            }
+            1 -> {
+                playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                btnAspect.text = "Zoom"
+            }
+            2 -> {
+                playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+                btnAspect.text = "Stretch"
+            }
+        }
+    }
+
+    private fun enterPipMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val params = PictureInPictureParams.Builder()
+                .setAspectRatio(Rational(16, 9))
+                .build()
+            enterPictureInPictureMode(params)
+        }
+    }
+
+    // Auto PiP jab user Home button dabaye ya app switch kare
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (prefs.autoPip && player?.isPlaying == true) {
+            enterPipMode()
+        }
     }
 
     private fun hideSystemUI() {
@@ -115,14 +146,16 @@ class PlayerActivity : AppCompatActivity() {
     private fun setupGestures() {
         val gestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
             override fun onDoubleTap(e: MotionEvent): Boolean {
+                if (!prefs.gestureControl) return false
+                val seekMs = prefs.seekSeconds * 1000L
                 val screenWidth = playerView.width
                 player?.let {
                     if (e.x < screenWidth / 2) {
-                        it.seekTo((it.currentPosition - 10000).coerceAtLeast(0))
-                        showIndicator("-10s")
+                        it.seekTo((it.currentPosition - seekMs).coerceAtLeast(0))
+                        showIndicator("-${prefs.seekSeconds}s")
                     } else {
-                        it.seekTo(it.currentPosition + 10000)
-                        showIndicator("+10s")
+                        it.seekTo(it.currentPosition + seekMs)
+                        showIndicator("+${prefs.seekSeconds}s")
                     }
                 }
                 return true
@@ -134,13 +167,11 @@ class PlayerActivity : AppCompatActivity() {
                 distanceX: Float,
                 distanceY: Float
             ): Boolean {
-                if (e1 == null) return false
+                if (!prefs.gestureControl || e1 == null) return false
 
                 if (abs(distanceY) > abs(distanceX)) {
-                    // Vertical Swipe: Brightness (Left) ya Volume (Right)
                     val screenWidth = playerView.width
                     val deltaPercent = distanceY / playerView.height
-
                     if (e1.x < screenWidth / 2) {
                         adjustBrightness(deltaPercent)
                     } else {
@@ -148,11 +179,9 @@ class PlayerActivity : AppCompatActivity() {
                     }
                     return true
                 } else {
-                    // Horizontal Swipe: Video aage-piche (Seek) karein
                     player?.let { exoPlayer ->
                         val duration = exoPlayer.duration
                         if (duration > 0) {
-                            // Left swipe = piche, Right swipe = aage
                             val seekDelta = (-distanceX * 150).toLong()
                             val newPosition = (exoPlayer.currentPosition + seekDelta).coerceIn(0, duration)
                             exoPlayer.seekTo(newPosition)
@@ -179,6 +208,9 @@ class PlayerActivity : AppCompatActivity() {
         brightness = (brightness + delta).coerceIn(0.01f, 1.0f)
         lp.screenBrightness = brightness
         window.attributes = lp
+        if (prefs.rememberBrightness) {
+            prefs.savedBrightness = brightness
+        }
         showIndicator("Brightness: ${(brightness * 100).toInt()}%")
     }
 
