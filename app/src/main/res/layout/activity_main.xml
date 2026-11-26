@@ -1,61 +1,114 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#121212"
-    android:orientation="vertical"
-    android:padding="16dp">
-
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="MX Clone Player"
-        android:textColor="#FFFFFF"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        android:layout_marginBottom="12dp"/>
+    android:layout_height="match_parent">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="16dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <EditText
-            android:id="@+id/etVideoUrl"
-            android:layout_width="0dp"
-            android:layout_height="48dp"
-            android:layout_weight="1"
-            android:background="#242424"
-            android:hint="Network Stream URL (MP4 / M3U8)..."
-            android:paddingHorizontal="12dp"
-            android:textColor="#FFFFFF"
-            android:textColorHint="#888888"
-            android:singleLine="true" />
+        <!-- Top Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
 
-        <Button
-            android:id="@+id/btnPlayUrl"
-            android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:layout_marginStart="8dp"
-            android:backgroundTint="#2196F3"
-            android:text="Play"
-            android:textColor="#FFFFFF" />
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="MX Clone Player"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnSettings"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:backgroundTint="#2196F3"
+                android:text="Settings"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Network URL Bar -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="14dp">
+
+            <EditText
+                android:id="@+id/etVideoUrl"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="#22888888"
+                android:hint="Network Stream URL (MP4 / M3U8)..."
+                android:paddingHorizontal="12dp"
+                android:singleLine="true" />
+
+            <Button
+                android:id="@+id/btnPlayUrl"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginStart="8dp"
+                android:backgroundTint="#2196F3"
+                android:text="Play"
+                android:textColor="#FFFFFF" />
+        </LinearLayout>
+
+        <!-- Folder Navigation Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <Button
+                android:id="@+id/btnBackFolder"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:text="← Back"
+                android:textSize="12sp"
+                android:visibility="gone"
+                android:layout_marginEnd="8dp" />
+
+            <TextView
+                android:id="@+id/tvCurrentSection"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Video Folders"
+                android:textColor="#2196F3"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <ListView
+            android:id="@+id/listViewVideos"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:divider="#33888888"
+            android:dividerHeight="1dp" />
+
     </LinearLayout>
 
-    <TextView
+    <!-- Floating Play Button (Continue Last Video) -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabLastVideo"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Device Videos"
-        android:textColor="#BBBBBB"
-        android:textSize="16sp"
-        android:layout_marginBottom="8dp"/>
+        android:layout_gravity="bottom|end"
+        android:layout_margin="20dp"
+        android:src="@android:drawable/ic_media_play"
+        app:backgroundTint="#2196F3"
+        app:tint="#FFFFFF"
+        android:visibility="gone" />
 
-    <ListView
-        android:id="@+id/listViewVideos"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:divider="#2A2A2A"
-        android:dividerHeight="1dp" />
-
-</LinearLayout>
+</FrameLayout>
